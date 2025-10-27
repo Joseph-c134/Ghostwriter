@@ -9,6 +9,6 @@
     { "npm": "chart.js", "path": "dist/chart.umd.min.js", "dest": "ghostwriter/static/js/chart.min.js", "range": "latest" }
   ],
   "npm_dir": [
-    { "npm": "tinymce", "path": "tinymce", "dest_dir": "ghostwriter/static/js/tinymce", "range": "latest" }
+    { "npm": "tinymce", "path": ".", "dest_dir": "ghostwriter/static/js/tinymce", "range": "latest" }
   ]
 }
