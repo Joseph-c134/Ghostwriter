@@ -1,0 +1,95 @@
+name: Auto-update static JS
+
+on:
+  schedule:
+    - cron: "0 7 * * *"   # daily 07:00 UTC
+  workflow_dispatch:       # allow manual runs
+
+permissions:
+  contents: write
+
+concurrency:
+  group: auto-update-static-js
+  cancel-in-progress: true
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq rsync curl
+
+      - name: Prepare temp npm workspace
+        run: |
+          WORK=/tmp/updater
+          rm -rf "$WORK"
+          mkdir -p "$WORK"
+          cd "$WORK"
+          npm init -y >/dev/null 2>&1
+          echo "WORK=$WORK" >> $GITHUB_ENV
+
+      - name: Update libraries from mapping (TinyMCE + others)
+        run: |
+          set -euo pipefail
+          map="update-map.json"
+          if [ ! -f "$map" ]; then
+            echo "::warning file=$map::Mapping file not found; skipping"
+            exit 0
+          fi
+
+          # --- Multi-file packages copied from node_modules (e.g., TinyMCE) ---
+          jq -rc '.npm_dir[]? | @base64' "$map" | while read -r row; do
+            _jq() { echo "$row" | base64 -d | jq -r "$1"; }
+            pkg=$(_jq '.npm')
+            path=$(_jq '.path')
+            dest=$(_jq '.dest_dir')
+            range=$(_jq '.range // "latest"')
+
+            echo ">> sync dir $pkg@$range ($path) -> $dest"
+            cd "$WORK"
+            npm i --silent "$pkg@$range"
+            mkdir -p "$GITHUB_WORKSPACE/$dest"
+            rsync -a --delete "node_modules/$pkg/$path/" "$GITHUB_WORKSPACE/$dest/"
+          done
+
+          # --- Single-file assets fetched via exact versioned jsDelivr URL ---
+          jq -rc '.cdn_file[]? | @base64' "$map" | while read -r row; do
+            _jq() { echo "$row" | base64 -d | jq -r "$1"; }
+            pkg=$(_jq '.npm')
+            path=$(_jq '.path')
+            dest=$(_jq '.dest')
+            range=$(_jq '.range // "latest"')
+
+            ver=$(npm view "$pkg@$range" version)
+            url="https://cdn.jsdelivr.net/npm/$pkg@$ver/$path"
+
+            echo ">> fetch $url -> $dest"
+            mkdir -p "$(dirname "$GITHUB_WORKSPACE/$dest")"
+            curl -fsSL "$url" -o "$GITHUB_WORKSPACE/$dest"
+          done
+
+      - name: Commit & push if changed
+        run: |
+          set -e
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add ghostwriter/static/js
+          if git diff --cached --quiet; then
+            echo "No changes."
+            exit 0
+          fi
+          git commit -m "chore(static): auto-update JS libraries"
+          git push
+
