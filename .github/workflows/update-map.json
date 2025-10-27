@@ -1,0 +1,31 @@
+{
+  "npm_dir": [
+    {
+      "npm": "tinymce",
+      "path": "tinymce",
+      "dest_dir": "ghostwriter/static/js/tinymce",
+      "range": "latest"
+    }
+  ],
+  "cdn_file": [
+    {
+      "npm": "jquery",
+      "path": "dist/jquery.min.js",
+      "dest": "ghostwriter/static/js/jquery.min.js",
+      "range": "latest"
+    },
+    {
+      "npm": "bootstrap",
+      "path": "dist/js/bootstrap.bundle.min.js",
+      "dest": "ghostwriter/static/js/bootstrap.bundle.min.js",
+      "range": "latest"
+    },
+    {
+      "npm": "@popperjs/core",
+      "path": "dist/umd/popper.min.js",
+      "dest": "ghostwriter/static/js/popper.min.js",
+      "range": "latest"
+    }
+  ]
+}
+
